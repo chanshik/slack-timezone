@@ -11,7 +11,9 @@ Python 3.x
 
 ## Run
 
+```
 $ export SLACK_TOKEN="xoxb-xxxx" | python main.py
+```
 
 ## To Do
 
