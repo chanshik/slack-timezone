@@ -15,5 +15,5 @@ $ export SLACK_TOKEN="xoxb-xxxx" | python main.py
 
 ## To Do
 
--[ ] Add Supervisor environments
--[ ] Add Dockerfile
+- [ ] Add Supervisor environments
+- [ ] Add Dockerfile
