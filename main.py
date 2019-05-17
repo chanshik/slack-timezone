@@ -38,6 +38,14 @@ def get_timezone_with_user(user_id: str) -> tuple:
 
     return "\n".join(results), username
 
+def check_trigger_keyword(data_text):
+    trigger_keywords = ['!timezone' , '$tz']
+
+    for tk in trigger_keywords:
+        if tk in data_text:
+            return True
+    return False
+
 
 @RTMClient.run_on(event='message')
 def message_receiver(**payload):
@@ -46,7 +54,7 @@ def message_receiver(**payload):
 
     is_bot_message = 'subtype' in data and data['subtype'] != 'bot_message'
 
-    if not is_bot_message and 'text' in data and 'timezone' in data['text']:
+    if not is_bot_message and 'text' in data and check_trigger_keyword(data['text']):
         channel_id = data['channel']
         tz_results, username = get_timezone_with_user(data['user'])
 
