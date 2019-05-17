@@ -17,6 +17,6 @@ $ export SLACK_TOKEN="xoxb-xxxx" | python main.py
 
 ## To Do
 
-- [ ] Print name of the day
+- [x] Print name of the day
 - [ ] Add Supervisor environments
 - [ ] Add Dockerfile
