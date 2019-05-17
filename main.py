@@ -7,6 +7,8 @@ from collections import defaultdict
 import pytz
 from slack import WebClient, RTMClient
 
+from setting import TRIGGER_KEYWORDS
+
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
 logger = logging.getLogger("slack_timezone_app")
 web_client = None
@@ -29,21 +31,21 @@ def get_timezone_with_user(user_id: str) -> tuple:
     now = datetime.datetime.utcnow().replace(microsecond=0)
     d = pytz.UTC.localize(now)
 
-    results = ["*UTC*: *{}*".format(now)]
+    results = ["*UTC*: *{}*".format(now.strftime("%Y-%m-%d %H:%M:%S%z %a"))]
     for tz_name, users in tz_users.items():
         tz = pytz.timezone(tz_name)
-        results.append("*{}*".format(tz_name))
-        results.append("  Local: *{}*".format(d.astimezone(tz)))
+        results.append("*{}* ({})".format(tz_name, d.astimezone(tz).strftime("%Z")))
+        results.append("  Local: *{}*".format(d.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S%z %a")))
         results.append("  Users: *{}*".format(", ".join(["`{}`".format(u) for u in users])))
 
     return "\n".join(results), username
 
-def check_trigger_keyword(data_text):
-    trigger_keywords = ['!timezone' , '$tz']
 
-    for tk in trigger_keywords:
-        if tk in data_text:
+def check_trigger_keyword(data_text: str, keywords: list) -> bool:
+    for keyword in keywords:
+        if keyword in data_text:
             return True
+
     return False
 
 
@@ -54,7 +56,7 @@ def message_receiver(**payload):
 
     is_bot_message = 'subtype' in data and data['subtype'] != 'bot_message'
 
-    if not is_bot_message and 'text' in data and check_trigger_keyword(data['text']):
+    if not is_bot_message and 'text' in data and check_trigger_keyword(data['text'], TRIGGER_KEYWORDS):
         channel_id = data['channel']
         tz_results, username = get_timezone_with_user(data['user'])
 
@@ -92,7 +94,7 @@ def main():
     rtm_client.start()
 
 
-def check(web_client):
+def check(web_client) -> bool:
     resp = web_client.api_test()
 
     return resp.data['ok']
