@@ -6,13 +6,24 @@ Show members' timezone and each local time.
 
 ## Environments
 
-Python 3.x
+### Python 3.x
 * slackclient
+* requests
+
+```
+$ pip install -r requirements
+```
+
+### API Keys
+* Slack Token
+* https://openweathermap.org API Key
 
 ## Run
 
 ```
-$ export SLACK_TOKEN="xoxb-xxxx" | python main.py
+$ export SLACK_TOKEN="xoxb-xxxx"
+$ export WEATHER_TOKEN="xxxxxxxxxxx"
+$ python main.py
 ```
 
 ## To Do
