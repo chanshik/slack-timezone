@@ -5,14 +5,71 @@ import datetime
 from collections import defaultdict
 
 import pytz
+import requests
 from slack import WebClient, RTMClient
 
-from setting import TRIGGER_KEYWORDS
+from setting import TRIGGER_KEYWORDS, WEATHER_TOKEN
 
 logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO)
 logger = logging.getLogger("slack_timezone_app")
 web_client = None
 rtm_client = None
+
+
+def deg_to_compass(num):
+    # Function code from https://stackoverflow.com/a/7490772
+    val = int((num / 22.5) + .5)
+    arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+
+    return arr[(val % 16)]
+
+
+def call_openweathermap_by_timezone(tz_name) -> (bool, dict):
+    weather_api = "https://api.openweathermap.org/data/2.5/weather"
+    params = {
+        'q': '',
+        'appid': WEATHER_TOKEN,
+        'units': 'metric'
+    }
+
+    try:
+        city = tz_name.split("/")[1].replace('_', ' ')
+
+    except RuntimeError:
+        return False, {}
+
+    params['q'] = city
+    resp = requests.get(weather_api, params=params)
+    if resp.status_code != 200:
+        return False, {}
+
+    try:
+        weather_json = resp.json()
+
+    except RuntimeError:
+        return False, {}
+
+    return True, weather_json
+
+
+def get_weather_by_timezone(tz_name):
+    if WEATHER_TOKEN is None or WEATHER_TOKEN == "":
+        return None
+
+    success, weather_obj = call_openweathermap_by_timezone(tz_name)
+    if success is False:
+        return None
+
+    results = []
+    main_prop = weather_obj['main']
+
+    results.append('*{}°С*'.format(main_prop['temp']))
+    results.append('wind *{} m/s* ({})'.format(weather_obj['wind']['speed'], deg_to_compass(weather_obj['wind']['deg'])))
+    results.append('clouds *{} %*'.format(weather_obj['clouds']['all']))
+    results.append('humidity *{} %*'.format(main_prop['humidity']))
+    results.append('*{} hpa*'.format(main_prop['pressure']))
+
+    return ", ".join(results)
 
 
 def get_timezone_with_user(user_id: str) -> tuple:
@@ -36,6 +93,9 @@ def get_timezone_with_user(user_id: str) -> tuple:
         tz = pytz.timezone(tz_name)
         results.append("*{}* ({})".format(tz_name, d.astimezone(tz).strftime("%Z")))
         results.append("  Local: *{}*".format(d.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S%z %a")))
+        weather = get_weather_by_timezone(tz_name)
+        if weather is not None:
+            results.append("  Weather: {}".format(weather))
         results.append("  Users: *{}*".format(", ".join(["`{}`".format(u) for u in users])))
 
     return "\n".join(results), username
@@ -70,16 +130,20 @@ def message_receiver(**payload):
 
 @RTMClient.run_on(event='hello')
 def hello(**payload):
-    logger.info("RTM Connected")
+    logger.info("RTM Connected.")
 
 
 def main():
-    global web_client, rtm_client
+    global web_client, rtm_client, WEATHER_TOKEN
 
     token = os.getenv("SLACK_TOKEN", "")
     if token == "":
         logger.error("SLACK_TOKEN is empty. Exiting.")
         sys.exit(255)
+
+    WEATHER_TOKEN = os.getenv("WEATHER_TOKEN", WEATHER_TOKEN)
+    if WEATHER_TOKEN == "":
+        logger.warning("WEATHER_TOKEN is empty. 'Print weather of the region' is disabled.")
 
     web_client, rtm_client = init_client(token)
     if web_client is None or rtm_client is None:
@@ -90,7 +154,7 @@ def main():
         logger.error("API Check failed. Exiting.")
         sys.exit(253)
 
-    logger.info("RTM Client start...")
+    logger.info("RTM Client starting.")
     rtm_client.start()
 
 
