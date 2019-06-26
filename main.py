@@ -16,7 +16,7 @@ web_client = None
 rtm_client = None
 
 
-def deg_to_compass(num):
+def deg_to_compass(num) -> str:
     # Function code from https://stackoverflow.com/a/7490772
     val = int((num / 22.5) + .5)
     arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
@@ -52,22 +52,29 @@ def call_openweathermap_by_timezone(tz_name) -> (bool, dict):
     return True, weather_json
 
 
-def get_weather_by_timezone(tz_name):
+def get_weather_by_timezone(tz_name) -> str:
     if WEATHER_TOKEN is None or WEATHER_TOKEN == "":
-        return None
+        return ""
 
     success, weather_obj = call_openweathermap_by_timezone(tz_name)
     if success is False:
-        return None
+        return ""
 
     results = []
     main_prop = weather_obj['main']
 
-    results.append('*{}°С*'.format(main_prop['temp']))
-    results.append('wind *{} m/s* ({})'.format(weather_obj['wind']['speed'], deg_to_compass(weather_obj['wind']['deg'])))
-    results.append('clouds *{} %*'.format(weather_obj['clouds']['all']))
-    results.append('humidity *{} %*'.format(main_prop['humidity']))
-    results.append('*{} hpa*'.format(main_prop['pressure']))
+    try:
+        results.append('*{}°С*'.format(main_prop['temp']))
+        if 'speed' in weather_obj['wind'] and 'deg' in weather_obj['wind']:
+            speed = weather_obj['wind']['speed']
+            deg = weather_obj['wind']['deg']
+            results.append('wind *{} m/s* ({})'.format(speed, deg_to_compass(deg)))
+        results.append('clouds *{} %*'.format(weather_obj['clouds']['all']))
+        results.append('humidity *{} %*'.format(main_prop['humidity']))
+        results.append('*{} hpa*'.format(main_prop['pressure']))
+
+    except KeyError:
+        return ""
 
     return ", ".join(results)
 
@@ -94,7 +101,7 @@ def get_timezone_with_user(user_id: str) -> tuple:
         results.append("*{}* ({})".format(tz_name, d.astimezone(tz).strftime("%Z")))
         results.append("  Local: *{}*".format(d.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S%z %a")))
         weather = get_weather_by_timezone(tz_name)
-        if weather is not None:
+        if weather is not "":
             results.append("  Weather: {}".format(weather))
         results.append("  Users: *{}*".format(", ".join(["`{}`".format(u) for u in users])))
 
@@ -126,6 +133,9 @@ def message_receiver(**payload):
         )
 
         logger.info("{} request timezone.".format(username))
+
+    else:
+        pass
 
 
 @RTMClient.run_on(event='hello')
